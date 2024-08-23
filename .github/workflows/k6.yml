@@ -1,0 +1,52 @@
+name: k6 Load Test
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 3 * * *'
+
+jobs:
+  k6_local_test:
+    name: k6 local test run
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: grafana/setup-k6-action@v1.1.0
+
+      - name: preload cache
+        run: |
+          k6 run -q --vus 1 --duration 1s test.js
+
+      - name: Run local k6 test
+        id: k6test
+        run: |
+          mkdir -p html_reports
+          echo "<html><body><h1>lindas-varnish-benchmark</h1><pre>" >> html_reports/index.html
+          k6 run -q --vus 1000 --duration 10s test.js >> html_reports/index.html
+          echo -e "\nduration: 10s\n" >> html_reports/index.html
+
+      - name: Upload Pages artifact
+        id: upload
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'html_reports'
+
+  deploy:
+    name: Deploy result
+    needs: k6_local_test
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write      # to deploy to Pages
+      id-token: write   # to verify the deployment originates from an appropriate source
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4 # or specific "vX.X.X" version tag for this action
