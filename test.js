@@ -730,5 +730,6 @@ export default () => {
 
   check(res, {
     'is status 200': (r) => r.status === 200,
+    'is compressed': (r) => r.headers['Content-Encoding'] === 'gzip',
   });
 };
